@@ -6,87 +6,131 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-:root {
+:root{
   --primary:#14b8a6;
   --primary-dark:#0f766e;
-  --bg:#f4f5f7;
+  --bg:#f1f5f9;
   --card:#ffffff;
   --text:#0f172a;
+  --muted:#64748b;
 }
 
 *{box-sizing:border-box}
 
 body{
   margin:0;
-  background:var(--bg);
-  font-family:system-ui,-apple-system,Segoe UI,Roboto;
-  display:flex;
-  justify-content:center;
-  align-items:center;
   min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(135deg,#e0f2fe,#f8fafc);
+  font-family:system-ui,-apple-system,Segoe UI,Roboto;
+  color:var(--text);
 }
 
 .card{
   width:100%;
   max-width:420px;
   background:var(--card);
-  border-radius:18px;
-  padding:24px;
-  box-shadow:0 20px 40px rgba(0,0,0,.08);
+  border-radius:22px;
+  padding:26px;
+  box-shadow:0 25px 60px rgba(15,23,42,.15);
+  animation:fadeIn .5s ease;
+}
+
+@keyframes fadeIn{
+  from{opacity:0;transform:translateY(20px) scale(.96)}
+  to{opacity:1;transform:none}
 }
 
 h1{
-  font-size:20px;
   text-align:center;
-  margin-bottom:20px;
-  color:var(--text);
+  font-size:20px;
+  margin-bottom:22px;
 }
 
-button, select, input{
+select,input,button{
   width:100%;
-  padding:12px 14px;
+  padding:13px 14px;
   margin-top:12px;
-  border-radius:10px;
-  border:1px solid #e5e7eb;
+  border-radius:12px;
   font-size:14px;
 }
 
-button{
-  background:var(--primary);
-  color:#fff;
-  border:none;
-  font-weight:600;
-}
-
-button:disabled{
-  background:#94a3b8;
-}
-
-button.secondary{
-  background:#bbf7d0;
-  color:#065f46;
+select,input{
+  border:1px solid #e5e7eb;
 }
 
 input[readonly]{
   background:#f8fafc;
 }
 
+button{
+  border:none;
+  background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+  color:white;
+  font-weight:600;
+  cursor:pointer;
+  transition:.25s ease;
+  position:relative;
+  overflow:hidden;
+}
+
+button:hover{
+  transform:translateY(-1px);
+  box-shadow:0 10px 25px rgba(20,184,166,.35);
+}
+
+button:active{
+  transform:scale(.98);
+}
+
+button:disabled{
+  background:#94a3b8;
+  box-shadow:none;
+  cursor:not-allowed;
+}
+
+button.secondary{
+  background:linear-gradient(135deg,#bbf7d0,#86efac);
+  color:#065f46;
+}
+
+button.loading::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(
+    120deg,
+    transparent,
+    rgba(255,255,255,.35),
+    transparent
+  );
+  animation:shimmer 1.2s infinite;
+}
+
+@keyframes shimmer{
+  from{transform:translateX(-100%)}
+  to{transform:translateX(100%)}
+}
+
 #error{
   display:none;
-  margin-top:12px;
-  padding:10px;
+  margin-top:14px;
+  padding:12px;
   background:#fee2e2;
   color:#7f1d1d;
-  border-radius:10px;
+  border-radius:12px;
   font-size:13px;
   white-space:pre-wrap;
+  animation:fadeIn .3s ease;
 }
 
 footer{
+  margin-top:20px;
   text-align:center;
-  margin-top:18px;
   font-size:12px;
-  color:#64748b;
+  color:var(--muted);
 }
 </style>
 </head>
@@ -113,86 +157,88 @@ footer{
 </div>
 
 <script>
-const loadBtn = document.getElementById('loadBtn');
-const deployBtn = document.getElementById('deployBtn');
-const errorBox = document.getElementById('error');
-const result = document.getElementById('result');
+const loadBtn = document.getElementById('loadBtn')
+const deployBtn = document.getElementById('deployBtn')
+const errorBox = document.getElementById('error')
+const result = document.getElementById('result')
+const repoSelect = document.getElementById('repoSelect')
 
-function setLoading(btn, text){
-  btn.disabled = true;
-  btn.dataset.old = btn.textContent;
-  btn.textContent = text;
+function loading(btn,text){
+  btn.disabled=true
+  btn.dataset.old=btn.textContent
+  btn.textContent=text
+  btn.classList.add('loading')
 }
 
-function clearLoading(btn){
-  btn.disabled = false;
-  btn.textContent = btn.dataset.old;
+function stopLoading(btn){
+  btn.disabled=false
+  btn.textContent=btn.dataset.old
+  btn.classList.remove('loading')
 }
 
 function showError(msg){
-  errorBox.style.display='block';
-  errorBox.textContent=msg;
+  errorBox.style.display='block'
+  errorBox.textContent=msg
 }
 
 function clearError(){
-  errorBox.style.display='none';
-  errorBox.textContent='';
+  errorBox.style.display='none'
+  errorBox.textContent=''
 }
 
 async function loadRepos(){
-  clearError();
-  setLoading(loadBtn,'Memuat...');
-  const r = await fetch('/api/github');
-  const data = await r.json();
-  const s = document.getElementById('repoSelect');
-
-  s.innerHTML='<option value="">— Pilih repository —</option>';
-  data.forEach(x=>{
-    const o=document.createElement('option');
-    o.value=x.full_name;
-    o.textContent=x.full_name;
-    s.appendChild(o);
-  });
-  clearLoading(loadBtn);
+  clearError()
+  loading(loadBtn,'Memuat...')
+  try{
+    const r = await fetch('/api/github')
+    const data = await r.json()
+    repoSelect.innerHTML='<option value="">— Pilih repository —</option>'
+    data.forEach(x=>{
+      const o=document.createElement('option')
+      o.value=x.full_name
+      o.textContent=x.full_name
+      repoSelect.appendChild(o)
+    })
+  }catch(e){
+    showError('Gagal mengambil repository')
+  }
+  stopLoading(loadBtn)
 }
 
 async function deploy(){
-  clearError();
-  result.value='';
-  const repo = repoSelect.value;
-
-  if(!repo){
-    showError('Repository belum dipilih');
-    return;
+  clearError()
+  result.value=''
+  if(!repoSelect.value){
+    showError('Repository belum dipilih')
+    return
   }
 
-  setLoading(deployBtn,'Memuat...');
-
-  const r = await fetch('/api/deploy-netlify',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({repoFullName:repo})
-  });
-
-  const d = await r.json();
-
-  clearLoading(deployBtn);
-
-  if(!d.url){
-    showError(JSON.stringify(d,null,2));
-    return;
+  loading(deployBtn,'Memuat...')
+  try{
+    const r = await fetch('/api/deploy-netlify',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({repoFullName:repoSelect.value})
+    })
+    const d = await r.json()
+    if(!d.url){
+      showError(JSON.stringify(d,null,2))
+    }else{
+      result.value=d.url
+    }
+  }catch(e){
+    showError('Deploy gagal')
   }
-
-  result.value=d.url;
+  stopLoading(deployBtn)
 }
 
 function copy(){
   if(!result.value){
-    showError('Belum ada link');
-    return;
+    showError('Belum ada link')
+    return
   }
-  navigator.clipboard.writeText(result.value);
-  alert('Link disalin');
+  navigator.clipboard.writeText(result.value)
+  alert('Link disalin')
 }
 </script>
 
