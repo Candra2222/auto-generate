@@ -4,92 +4,195 @@
 <meta charset="UTF-8">
 <title>GitHub → Netlify Auto Deploy</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <style>
-body {
-  background:#0f172a;
-  font-family:Arial;
-  color:white;
+:root {
+  --primary:#14b8a6;
+  --primary-dark:#0f766e;
+  --bg:#f4f5f7;
+  --card:#ffffff;
+  --text:#0f172a;
 }
-.box {
-  max-width:420px;
-  margin:40px auto;
-  background:#020617;
-  padding:20px;
-  border-radius:12px;
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  background:var(--bg);
+  font-family:system-ui,-apple-system,Segoe UI,Roboto;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:100vh;
 }
-button, select, input {
+
+.card{
   width:100%;
-  margin-top:10px;
-  padding:10px;
-  border-radius:8px;
-  border:none;
+  max-width:420px;
+  background:var(--card);
+  border-radius:18px;
+  padding:24px;
+  box-shadow:0 20px 40px rgba(0,0,0,.08);
 }
-.primary {
-  background:#14b8a6;
-  color:white;
-}
-.success {
-  background:#22c55e;
-  color:white;
-}
-.footer {
+
+h1{
+  font-size:20px;
   text-align:center;
-  margin-top:20px;
-  opacity:.5;
+  margin-bottom:20px;
+  color:var(--text);
+}
+
+button, select, input{
+  width:100%;
+  padding:12px 14px;
+  margin-top:12px;
+  border-radius:10px;
+  border:1px solid #e5e7eb;
+  font-size:14px;
+}
+
+button{
+  background:var(--primary);
+  color:#fff;
+  border:none;
+  font-weight:600;
+}
+
+button:disabled{
+  background:#94a3b8;
+}
+
+button.secondary{
+  background:#bbf7d0;
+  color:#065f46;
+}
+
+input[readonly]{
+  background:#f8fafc;
+}
+
+#error{
+  display:none;
+  margin-top:12px;
+  padding:10px;
+  background:#fee2e2;
+  color:#7f1d1d;
+  border-radius:10px;
+  font-size:13px;
+  white-space:pre-wrap;
+}
+
+footer{
+  text-align:center;
+  margin-top:18px;
+  font-size:12px;
+  color:#64748b;
 }
 </style>
 </head>
+
 <body>
 
-<div class="box">
-  <h3>GitHub → Netlify Auto Deploy</h3>
+<div class="card">
+  <h1>GitHub → Netlify Auto Deploy</h1>
 
-  <button class="primary" onclick="loadRepos()">Ambil Repository</button>
+  <button id="loadBtn" onclick="loadRepos()">Ambil Repository</button>
 
-  <select id="repoSelect"></select>
+  <select id="repoSelect">
+    <option value="">— Pilih repository —</option>
+  </select>
 
-  <input id="htmlPath" value="index.html" placeholder="Path HTML">
+  <button id="deployBtn" onclick="deploy()">Deploy ke Netlify</button>
 
-  <button class="primary" onclick="deploy()">Deploy</button>
+  <div id="error"></div>
 
   <input id="result" readonly placeholder="URL hasil deploy">
+  <button class="secondary" onclick="copy()">Copy</button>
 
-  <button class="success" onclick="copy()">Salin Link</button>
-
-  <div class="footer">tools by sesepuh © 2026</div>
+  <footer>tools by sesepuh © 2026</footer>
 </div>
 
 <script>
-async function loadRepos() {
+const loadBtn = document.getElementById('loadBtn');
+const deployBtn = document.getElementById('deployBtn');
+const errorBox = document.getElementById('error');
+const result = document.getElementById('result');
+
+function setLoading(btn, text){
+  btn.disabled = true;
+  btn.dataset.old = btn.textContent;
+  btn.textContent = text;
+}
+
+function clearLoading(btn){
+  btn.disabled = false;
+  btn.textContent = btn.dataset.old;
+}
+
+function showError(msg){
+  errorBox.style.display='block';
+  errorBox.textContent=msg;
+}
+
+function clearError(){
+  errorBox.style.display='none';
+  errorBox.textContent='';
+}
+
+async function loadRepos(){
+  clearError();
+  setLoading(loadBtn,'Memuat...');
   const r = await fetch('/api/github');
   const data = await r.json();
   const s = document.getElementById('repoSelect');
-  s.innerHTML = '';
-  data.forEach(x => {
-    const o = document.createElement('option');
-    o.value = x.full_name;
-    o.textContent = x.full_name;
+
+  s.innerHTML='<option value="">— Pilih repository —</option>';
+  data.forEach(x=>{
+    const o=document.createElement('option');
+    o.value=x.full_name;
+    o.textContent=x.full_name;
     s.appendChild(o);
   });
+  clearLoading(loadBtn);
 }
 
-async function deploy() {
-  const repoFullName = repoSelect.value;
-  const htmlPath = document.getElementById('htmlPath').value;
+async function deploy(){
+  clearError();
+  result.value='';
+  const repo = repoSelect.value;
 
-  const r = await fetch('/api/deploy-netlify', {
+  if(!repo){
+    showError('Repository belum dipilih');
+    return;
+  }
+
+  setLoading(deployBtn,'Memuat...');
+
+  const r = await fetch('/api/deploy-netlify',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({ repoFullName, htmlPath })
+    body:JSON.stringify({repoFullName:repo})
   });
 
   const d = await r.json();
-  result.value = d.url || JSON.stringify(d);
+
+  clearLoading(deployBtn);
+
+  if(!d.url){
+    showError(JSON.stringify(d,null,2));
+    return;
+  }
+
+  result.value=d.url;
 }
 
 function copy(){
+  if(!result.value){
+    showError('Belum ada link');
+    return;
+  }
   navigator.clipboard.writeText(result.value);
-  alert('Link disalin!');
+  alert('Link disalin');
 }
 </script>
 
