@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>GitHub → Netlify Auto Deploy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body {
+  background:#0f172a;
+  font-family:Arial;
+  color:white;
+}
+.box {
+  max-width:420px;
+  margin:40px auto;
+  background:#020617;
+  padding:20px;
+  border-radius:12px;
+}
+button, select, input {
+  width:100%;
+  margin-top:10px;
+  padding:10px;
+  border-radius:8px;
+  border:none;
+}
+.primary {
+  background:#14b8a6;
+  color:white;
+}
+.success {
+  background:#22c55e;
+  color:white;
+}
+.footer {
+  text-align:center;
+  margin-top:20px;
+  opacity:.5;
+}
+</style>
+</head>
+<body>
+
+<div class="box">
+  <h3>GitHub → Netlify Auto Deploy</h3>
+
+  <button class="primary" onclick="loadRepos()">Ambil Repository</button>
+
+  <select id="repoSelect"></select>
+
+  <input id="htmlPath" value="index.html" placeholder="Path HTML">
+
+  <button class="primary" onclick="deploy()">Deploy</button>
+
+  <input id="result" readonly placeholder="URL hasil deploy">
+
+  <button class="success" onclick="copy()">Salin Link</button>
+
+  <div class="footer">tools by sesepuh © 2026</div>
+</div>
+
+<script>
+async function loadRepos() {
+  const r = await fetch('/api/github');
+  const data = await r.json();
+  const s = document.getElementById('repoSelect');
+  s.innerHTML = '';
+  data.forEach(x => {
+    const o = document.createElement('option');
+    o.value = x.full_name;
+    o.textContent = x.full_name;
+    s.appendChild(o);
+  });
+}
+
+async function deploy() {
+  const repoFullName = repoSelect.value;
+  const htmlPath = document.getElementById('htmlPath').value;
+
+  const r = await fetch('/api/deploy-netlify', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ repoFullName, htmlPath })
+  });
+
+  const d = await r.json();
+  result.value = d.url || JSON.stringify(d);
+}
+
+function copy(){
+  navigator.clipboard.writeText(result.value);
+  alert('Link disalin!');
+}
+</script>
+
+</body>
+</html>
